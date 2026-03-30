@@ -10,6 +10,7 @@ import Projects from './pages/Projects'
 import Contracts from './pages/Contracts'
 import Payments from './pages/Payments'
 import Reports from './pages/Reports'
+import Transfer from './pages/Transfer'
 import { UsersManagement, RolesManagement } from './pages/System'
 import Profile from './pages/Profile'
 
@@ -36,6 +37,7 @@ export default function App() {
           <Route path="reports" element={<Reports />} />
           <Route path="system/users" element={<UsersManagement />} />
           <Route path="system/roles" element={<RolesManagement />} />
+          <Route path="system/transfer" element={<Transfer />} />
           <Route path="profile" element={<Profile />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />

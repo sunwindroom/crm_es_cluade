@@ -1,130 +1,15 @@
 import axios from 'axios'
-
 const API_BASE = import.meta.env.VITE_API_BASE || '/api'
-
-const request = axios.create({
-  baseURL: API_BASE,
-  timeout: 15000,
-  headers: { 'Content-Type': 'application/json' },
-})
-
-request.interceptors.request.use(config => {
-  const token = localStorage.getItem('crm_token')
-  if (token) config.headers.Authorization = `Bearer ${token}`
-  return config
-})
-
-request.interceptors.response.use(
-  res => res.data,
-  err => {
-    if (err.response?.status === 401) {
-      localStorage.removeItem('crm_token')
-      localStorage.removeItem('crm_user')
-      window.location.href = '/login'
-    }
-    return Promise.reject(err.response?.data || { message: '网络请求失败' })
-  }
-)
-
+const request = axios.create({ baseURL: API_BASE, timeout: 15000, headers: { 'Content-Type': 'application/json' } })
+request.interceptors.request.use(config => { const token = localStorage.getItem('crm_token'); if (token) config.headers.Authorization = `Bearer ${token}`; return config })
+request.interceptors.response.use(res => res.data, err => { if (err.response?.status === 401) { localStorage.removeItem('crm_token'); localStorage.removeItem('crm_user'); window.location.href = '/login' }; return Promise.reject(err.response?.data || { message: '网络请求失败' }) })
 export default request
-
-// Auth
-export const authAPI = {
-  login: (data) => request.post('/auth/login', data),
-  getProfile: () => request.get('/auth/profile'),
-  updateProfile: (data) => request.put('/auth/profile', data),
-  changePassword: (data) => request.put('/auth/password', data),
-}
-
-// Leads
-export const leadsAPI = {
-  list: (params) => request.get('/leads', { params }),
-  get: (id) => request.get(`/leads/${id}`),
-  create: (data) => request.post('/leads', data),
-  update: (id, data) => request.put(`/leads/${id}`, data),
-  remove: (id) => request.delete(`/leads/${id}`),
-  convert: (id) => request.post(`/leads/${id}/convert`),
-}
-
-// Customers
-export const customersAPI = {
-  list: (params) => request.get('/customers', { params }),
-  get: (id) => request.get(`/customers/${id}`),
-  create: (data) => request.post('/customers', data),
-  update: (id, data) => request.put(`/customers/${id}`, data),
-  remove: (id) => request.delete(`/customers/${id}`),
-  addContact: (id, data) => request.post(`/customers/${id}/contacts`, data),
-  addFollowup: (id, data) => request.post(`/customers/${id}/followups`, data),
-}
-
-// Opportunities
-export const oppsAPI = {
-  list: (params) => request.get('/opportunities', { params }),
-  get: (id) => request.get(`/opportunities/${id}`),
-  create: (data) => request.post('/opportunities', data),
-  update: (id, data) => request.put(`/opportunities/${id}`, data),
-  remove: (id) => request.delete(`/opportunities/${id}`),
-  addActivity: (id, data) => request.post(`/opportunities/${id}/activities`, data),
-  funnel: () => request.get('/opportunities/funnel'),
-}
-
-// Projects
-export const projectsAPI = {
-  list: (params) => request.get('/projects', { params }),
-  get: (id) => request.get(`/projects/${id}`),
-  create: (data) => request.post('/projects', data),
-  update: (id, data) => request.put(`/projects/${id}`, data),
-  remove: (id) => request.delete(`/projects/${id}`),
-  createTask: (id, data) => request.post(`/projects/${id}/tasks`, data),
-  updateTask: (id, taskId, data) => request.put(`/projects/${id}/tasks/${taskId}`, data),
-  deleteTask: (id, taskId) => request.delete(`/projects/${id}/tasks/${taskId}`),
-}
-
-// Contracts
-export const contractsAPI = {
-  list: (params) => request.get('/contracts', { params }),
-  get: (id) => request.get(`/contracts/${id}`),
-  create: (data) => request.post('/contracts', data),
-  update: (id, data) => request.put(`/contracts/${id}`, data),
-  remove: (id) => request.delete(`/contracts/${id}`),
-  approve: (id, data) => request.put(`/contracts/${id}/approve`, data),
-  savePlans: (id, data) => request.post(`/contracts/${id}/payment-plans`, data),
-}
-
-// Payments
-export const paymentsAPI = {
-  list: (params) => request.get('/payments', { params }),
-  get: (id) => request.get(`/payments/${id}`),
-  create: (data) => request.post('/payments', data),
-  update: (id, data) => request.put(`/payments/${id}`, data),
-  remove: (id) => request.delete(`/payments/${id}`),
-  confirm: (id) => request.put(`/payments/${id}/confirm`),
-}
-
-// Reports
-export const reportsAPI = {
-  dashboard: () => request.get('/reports/dashboard'),
-  paymentTrend: () => request.get('/reports/payment-trend'),
-  salesFunnel: () => request.get('/reports/sales-funnel'),
-  customerSource: () => request.get('/reports/customer-source'),
-  customerIndustry: () => request.get('/reports/customer-industry'),
-  leadSource: () => request.get('/reports/lead-source'),
-  opportunityStage: () => request.get('/reports/opportunity-stage'),
-  staffPerformance: () => request.get('/reports/staff-performance'),
-  monthlyCustomers: () => request.get('/reports/monthly-customers'),
-}
-
-// System
-export const systemAPI = {
-  listUsers: (params) => request.get('/system/users', { params }),
-  getUser: (id) => request.get(`/system/users/${id}`),
-  createUser: (data) => request.post('/system/users', data),
-  updateUser: (id, data) => request.put(`/system/users/${id}`, data),
-  deleteUser: (id) => request.delete(`/system/users/${id}`),
-  resetPassword: (id, data) => request.put(`/system/users/${id}/reset-password`, data),
-  listRoles: () => request.get('/system/roles'),
-  createRole: (data) => request.post('/system/roles', data),
-  updateRole: (id, data) => request.put(`/system/roles/${id}`, data),
-  deleteRole: (id) => request.delete(`/system/roles/${id}`),
-  listLogs: (params) => request.get('/system/logs', { params }),
-}
+export const authAPI = { login:(d)=>request.post('/auth/login',d), getProfile:()=>request.get('/auth/profile'), updateProfile:(d)=>request.put('/auth/profile',d), changePassword:(d)=>request.put('/auth/password',d) }
+export const leadsAPI = { list:(p)=>request.get('/leads',{params:p}), get:(id)=>request.get(`/leads/${id}`), create:(d)=>request.post('/leads',d), update:(id,d)=>request.put(`/leads/${id}`,d), remove:(id)=>request.delete(`/leads/${id}`), convert:(id,d)=>request.post(`/leads/${id}/convert`,d), assign:(id,d)=>request.put(`/leads/${id}/assign`,d), addFollowup:(id,d)=>request.post(`/leads/${id}/followups`,d) }
+export const customersAPI = { list:(p)=>request.get('/customers',{params:p}), get:(id)=>request.get(`/customers/${id}`), create:(d)=>request.post('/customers',d), update:(id,d)=>request.put(`/customers/${id}`,d), remove:(id)=>request.delete(`/customers/${id}`), assign:(id,d)=>request.put(`/customers/${id}/assign`,d), addContact:(id,d)=>request.post(`/customers/${id}/contacts`,d), addFollowup:(id,d)=>request.post(`/customers/${id}/followups`,d) }
+export const oppsAPI = { list:(p)=>request.get('/opportunities',{params:p}), get:(id)=>request.get(`/opportunities/${id}`), create:(d)=>request.post('/opportunities',d), update:(id,d)=>request.put(`/opportunities/${id}`,d), remove:(id)=>request.delete(`/opportunities/${id}`), assign:(id,d)=>request.put(`/opportunities/${id}/assign`,d), addActivity:(id,d)=>request.post(`/opportunities/${id}/activities`,d), funnel:()=>request.get('/opportunities/funnel'), convertToProject:(id,d)=>request.post(`/opportunities/${id}/convert-to-project`,d) }
+export const projectsAPI = { list:(p)=>request.get('/projects',{params:p}), get:(id)=>request.get(`/projects/${id}`), create:(d)=>request.post('/projects',d), update:(id,d)=>request.put(`/projects/${id}`,d), remove:(id)=>request.delete(`/projects/${id}`), assignManager:(id,d)=>request.put(`/projects/${id}/assign-manager`,d), assignSales:(id,d)=>request.put(`/projects/${id}/assign-sales`,d), createTask:(id,d)=>request.post(`/projects/${id}/tasks`,d), updateTask:(id,tid,d)=>request.put(`/projects/${id}/tasks/${tid}`,d), deleteTask:(id,tid)=>request.delete(`/projects/${id}/tasks/${tid}`), getMilestones:(id)=>request.get(`/projects/${id}/milestones`), createMilestone:(id,d)=>request.post(`/projects/${id}/milestones`,d), updateMilestone:(id,mid,d)=>request.put(`/projects/${id}/milestones/${mid}`,d), deleteMilestone:(id,mid)=>request.delete(`/projects/${id}/milestones/${mid}`), getWorkhours:(id)=>request.get(`/projects/${id}/workhours`), addWorkhours:(id,d)=>request.post(`/projects/${id}/workhours`,d), getMembers:(id)=>request.get(`/projects/${id}/members`), addMember:(id,d)=>request.post(`/projects/${id}/members`,d), removeMember:(id,mid)=>request.delete(`/projects/${id}/members/${mid}`) }
+export const contractsAPI = { list:(p)=>request.get('/contracts',{params:p}), get:(id)=>request.get(`/contracts/${id}`), create:(d)=>request.post('/contracts',d), update:(id,d)=>request.put(`/contracts/${id}`,d), remove:(id)=>request.delete(`/contracts/${id}`), approve:(id,d)=>request.put(`/contracts/${id}/approve`,d), savePlans:(id,d)=>request.put(`/contracts/${id}/payment-plans`,d) }
+export const paymentsAPI = { list:(p)=>request.get('/payments',{params:p}), getPlans:(p)=>request.get('/payments/plans',{params:p}), get:(id)=>request.get(`/payments/${id}`), create:(d)=>request.post('/payments',d), update:(id,d)=>request.put(`/payments/${id}`,d), remove:(id)=>request.delete(`/payments/${id}`), confirm:(id)=>request.put(`/payments/${id}/confirm`) }
+export const reportsAPI = { dashboard:()=>request.get('/reports/dashboard'), paymentTrend:()=>request.get('/reports/payment-trend'), salesFunnel:()=>request.get('/reports/sales-funnel'), customerSource:()=>request.get('/reports/customer-source'), customerIndustry:()=>request.get('/reports/customer-industry'), leadSource:()=>request.get('/reports/lead-source'), opportunityStage:()=>request.get('/reports/opportunity-stage'), staffPerformance:()=>request.get('/reports/staff-performance'), monthlyCustomers:()=>request.get('/reports/monthly-customers'), projectWorkhours:()=>request.get('/reports/project-workhours'), paymentPlanAlerts:()=>request.get('/reports/payment-plan-alerts') }
+export const systemAPI = { listUsers:(p)=>request.get('/system/users',{params:p}), getUser:(id)=>request.get(`/system/users/${id}`), createUser:(d)=>request.post('/system/users',d), updateUser:(id,d)=>request.put(`/system/users/${id}`,d), deleteUser:(id)=>request.delete(`/system/users/${id}`), resetPassword:(id,d)=>request.put(`/system/users/${id}/reset-password`,d), resignUser:(id)=>request.put(`/system/users/${id}/resign`), transferUser:(id,d)=>request.post(`/system/users/${id}/transfer`,d), getResignedUsers:()=>request.get('/system/resigned-users'), getTransferLogs:()=>request.get('/system/transfer-logs'), listRoles:()=>request.get('/system/roles'), createRole:(d)=>request.post('/system/roles',d), updateRole:(id,d)=>request.put(`/system/roles/${id}`,d), deleteRole:(id)=>request.delete(`/system/roles/${id}`), listLogs:(p)=>request.get('/system/logs',{params:p}) }

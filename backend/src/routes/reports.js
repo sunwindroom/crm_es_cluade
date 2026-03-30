@@ -2,14 +2,13 @@ const express = require('express');
 const { getDb } = require('../db/connection');
 const auth = require('../middleware/auth');
 const router = express.Router();
-
 router.use(auth);
 
-// 仪表盘概览
 router.get('/dashboard', (req, res) => {
   const db = getDb();
   const currentMonth = new Date().toISOString().slice(0, 7);
   const lastMonth = new Date(new Date().setMonth(new Date().getMonth() - 1)).toISOString().slice(0, 7);
+  const today = new Date().toISOString().split('T')[0];
 
   const stats = {
     leads: {
@@ -44,13 +43,18 @@ router.get('/dashboard', (req, res) => {
       total: db.prepare('SELECT COUNT(*) as c FROM projects').get().c,
       in_progress: db.prepare(`SELECT COUNT(*) as c FROM projects WHERE status='in_progress'`).get().c,
       overdue: db.prepare(`SELECT COUNT(*) as c FROM projects WHERE status NOT IN ('completed','cancelled') AND end_date < date('now')`).get().c,
+      avg_progress: db.prepare(`SELECT COALESCE(AVG(progress),0) as a FROM projects WHERE status='in_progress'`).get().a,
     },
+    payment_plans: {
+      overdue: db.prepare(`SELECT COUNT(*) as c FROM payment_plans WHERE status='pending' AND planned_date < date('now')`).get().c,
+      due_soon: db.prepare(`SELECT COUNT(*) as c FROM payment_plans WHERE status='pending' AND planned_date BETWEEN date('now') AND date('now','+30 days')`).get().c,
+      overdue_amount: db.prepare(`SELECT COALESCE(SUM(amount),0) as s FROM payment_plans WHERE status='pending' AND planned_date < date('now')`).get().s,
+    }
   };
 
   res.json({ code: 200, data: stats });
 });
 
-// 月度回款趋势 (最近12个月)
 router.get('/payment-trend', (req, res) => {
   const db = getDb();
   const rows = db.prepare(`
@@ -61,7 +65,6 @@ router.get('/payment-trend', (req, res) => {
   res.json({ code: 200, data: rows });
 });
 
-// 销售漏斗
 router.get('/sales-funnel', (req, res) => {
   const db = getDb();
   const stages = [
@@ -78,64 +81,79 @@ router.get('/sales-funnel', (req, res) => {
   res.json({ code: 200, data });
 });
 
-// 客户来源分布
 router.get('/customer-source', (req, res) => {
   const db = getDb();
-  const rows = db.prepare(`
-    SELECT source, COUNT(*) as count FROM customers WHERE source IS NOT NULL GROUP BY source ORDER BY count DESC
-  `).all();
+  const rows = db.prepare(`SELECT source, COUNT(*) as count FROM customers WHERE source IS NOT NULL GROUP BY source ORDER BY count DESC`).all();
   res.json({ code: 200, data: rows });
 });
 
-// 客户行业分布
 router.get('/customer-industry', (req, res) => {
   const db = getDb();
-  const rows = db.prepare(`
-    SELECT industry, COUNT(*) as count FROM customers WHERE industry IS NOT NULL GROUP BY industry ORDER BY count DESC
-  `).all();
+  const rows = db.prepare(`SELECT industry, COUNT(*) as count FROM customers WHERE industry IS NOT NULL GROUP BY industry ORDER BY count DESC`).all();
   res.json({ code: 200, data: rows });
 });
 
-// 线索来源统计
 router.get('/lead-source', (req, res) => {
   const db = getDb();
-  const rows = db.prepare(`
-    SELECT source, COUNT(*) as total, SUM(converted) as converted FROM leads GROUP BY source
-  `).all();
+  const rows = db.prepare(`SELECT source, COUNT(*) as total, SUM(converted) as converted FROM leads GROUP BY source`).all();
   res.json({ code: 200, data: rows });
 });
 
-// 商机阶段分布
 router.get('/opportunity-stage', (req, res) => {
   const db = getDb();
-  const rows = db.prepare(`
-    SELECT stage, COUNT(*) as count, COALESCE(SUM(amount),0) as amount FROM opportunities GROUP BY stage
-  `).all();
+  const rows = db.prepare(`SELECT stage, COUNT(*) as count, COALESCE(SUM(amount),0) as amount FROM opportunities GROUP BY stage`).all();
   res.json({ code: 200, data: rows });
 });
 
-// 员工业绩排行
 router.get('/staff-performance', (req, res) => {
   const db = getDb();
   const rows = db.prepare(`
-    SELECT u.real_name as name, u.department,
+    SELECT u.real_name as name, u.department, r.name as role_name,
       (SELECT COUNT(*) FROM leads WHERE owner_id=u.id) as leads_count,
       (SELECT COUNT(*) FROM customers WHERE owner_id=u.id) as customers_count,
       (SELECT COUNT(*) FROM opportunities WHERE owner_id=u.id AND stage='closed_won') as won_count,
       (SELECT COALESCE(SUM(amount),0) FROM opportunities WHERE owner_id=u.id AND stage='closed_won') as won_amount,
       (SELECT COALESCE(SUM(p.amount),0) FROM payments p JOIN contracts c ON p.contract_id=c.id WHERE c.owner_id=u.id AND p.status='confirmed') as payment_amount
-    FROM users u WHERE u.status=1 ORDER BY won_amount DESC
+    FROM users u LEFT JOIN roles r ON u.role_id = r.id WHERE u.status=1 ORDER BY won_amount DESC
   `).all();
   res.json({ code: 200, data: rows });
 });
 
-// 月度新增客户
 router.get('/monthly-customers', (req, res) => {
   const db = getDb();
+  const rows = db.prepare(`SELECT strftime('%Y-%m', created_at) as month, COUNT(*) as count FROM customers WHERE created_at >= date('now','-12 months') GROUP BY month ORDER BY month`).all();
+  res.json({ code: 200, data: rows });
+});
+
+// 项目工时统计
+router.get('/project-workhours', (req, res) => {
+  const db = getDb();
   const rows = db.prepare(`
-    SELECT strftime('%Y-%m', created_at) as month, COUNT(*) as count FROM customers
-    WHERE created_at >= date('now','-12 months') GROUP BY month ORDER BY month
+    SELECT p.name as project_name, p.project_no, p.status,
+      COALESCE(SUM(w.hours),0) as total_hours,
+      COALESCE(SUM(w.hours * w.hourly_rate),0) as labor_cost,
+      p.budget,
+      COUNT(DISTINCT w.user_id) as member_count
+    FROM projects p
+    LEFT JOIN project_workhours w ON w.project_id = p.id
+    GROUP BY p.id ORDER BY total_hours DESC
   `).all();
+  res.json({ code: 200, data: rows });
+});
+
+// 回款计划预警
+router.get('/payment-plan-alerts', (req, res) => {
+  const db = getDb();
+  const today = new Date().toISOString().split('T')[0];
+  const rows = db.prepare(`
+    SELECT pp.*, c.name as contract_name, c.customer_name,
+      CAST(julianday(pp.planned_date) - julianday(?) AS INTEGER) as days_until
+    FROM payment_plans pp
+    LEFT JOIN contracts c ON pp.contract_id = c.id
+    WHERE pp.status = 'pending'
+    ORDER BY pp.planned_date ASC
+    LIMIT 20
+  `).all(today);
   res.json({ code: 200, data: rows });
 });
 
